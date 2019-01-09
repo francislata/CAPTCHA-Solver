@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from PIL import Image
 
+IMG_SIZE = (100, 100)
+
 class TrainingDataset(Dataset):
     def __init__(self, inputs, labels, vocabulary, filepath, device):
         self.inputs = inputs
@@ -13,7 +15,10 @@ class TrainingDataset(Dataset):
         self.filepath = filepath
         self.device = device
 
-        self.transforms = transforms.ToTensor()
+        self.transforms = transforms.Compose([
+            transforms.Resize(IMG_SIZE),
+            transforms.ToTensor()
+        ])
 
     def __len__(self): 
         return len(self.inputs)
