@@ -2,6 +2,8 @@ import pandas as pd
 from dataset.datasets import TrainingDataset, ValidationDataset, TestDataset
 from dataset.vocabulary import Vocabulary
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
+from torch.utils.data import DataLoader
 import torch
 
 TRAIN_FILEPATH = "dataset/train/{}"
@@ -21,6 +23,25 @@ def open_create_datasets(vocab):
 
     return training_ds, validation_ds, test_ds
 
+def train_validate_model(model, optimizer, criterion, training_ds, validation_ds, batch_size=128, num_epochs=10):
+    # Create dataloader for batching support of every dataset
+    training_dl = DataLoader(training_ds, batch_size=batch_size)
+    validation_dl = DataLoader(validation_ds, batch_size=batch_size)
+
+    for epoch in range(1, num_epochs + 1):
+        print("Starting epoch {}...".format(epoch))
+
+        training_loss = 0.0
+        validation_loss = 0.0
+
+        for inputs, labels in tqdm(training_dl, desc="[TRAINING]"):
+            break
+
+        for inputs, labels in tqdm(validation_dl, desc="[VALIDATION]"):
+            break
+
+        print("Completed epoch {}!\n".format(epoch))
+
 if __name__ == "__main__":
     print("[NOTE] Current device being used: {}\n".format(DEVICE))
     
@@ -35,4 +56,8 @@ if __name__ == "__main__":
     print("The validation dataset has {} samples.".format(len(validation_ds)))
     print("The test dataset has {} samples.\n".format(len(test_ds)))
 
-    print("[SETUP] Datasets are setup!\n")
+    print("[SETUP] Completed!\n")
+
+    print("[TRAINING & VALIDATION] Starting training and validation of model...\n")
+    train_validate_model(None, None, None, training_ds, validation_ds)
+    print("[TRAINING & VALIDATION] Completed!\n")
