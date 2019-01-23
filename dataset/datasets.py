@@ -7,16 +7,16 @@ from PIL import Image
 IMG_SIZE = (100, 100)
 
 class TrainingDataset(Dataset):
-    def __init__(self, inputs, labels, vocabulary, filepath, device):
+    def __init__(self, inputs, labels, vocabulary, filepath):
         self.inputs = inputs
         self.labels = labels
         self.vocabulary = vocabulary
 
         self.filepath = filepath
-        self.device = device
 
         self.transforms = transforms.Compose([
             transforms.Resize(IMG_SIZE),
+            transforms.Grayscale(),
             transforms.ToTensor()
         ])
 
@@ -29,18 +29,18 @@ class TrainingDataset(Dataset):
     def convert_sample_to_tensor(self, idx):
         input = self.inputs[idx]
         input = Image.open(self.filepath.format(input))
-        input = self.transforms(input).to(self.device)
+        input = self.transforms(input)
 
         label = self.labels[idx]
         label = [self.vocabulary.labels_to_idx[char] for char in label]
-        label = torch.FloatTensor(label, device=self.device)
+        label = torch.LongTensor(label)
 
         return input, label
 
 class ValidationDataset(TrainingDataset):
-    def __init__(self, inputs, labels, vocabulary, filepath, device):
-        super(ValidationDataset, self).__init__(inputs, labels, vocabulary, filepath, device)
+    def __init__(self, inputs, labels, vocabulary, filepath):
+        super(ValidationDataset, self).__init__(inputs, labels, vocabulary, filepath)
 
 class TestDataset(TrainingDataset):
-    def __init__(self, inputs, labels, vocabulary, filepath, device):
-        super(TestDataset, self).__init__(inputs, labels, vocabulary, filepath, device)
+    def __init__(self, inputs, labels, vocabulary, filepath):
+        super(TestDataset, self).__init__(inputs, labels, vocabulary, filepath)
