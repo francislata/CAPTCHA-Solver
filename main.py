@@ -5,16 +5,20 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from models.model import *
-import utils
+from utils.checkpoint import *
+from utils.plot import plot
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
 
 TRAIN_FILEPATH = "dataset/train/{}"
 TEST_FILEPATH = "dataset/test/{}"
 CAPTCHACNNCLASSIFIER_MODEL_CHECKPOINT_FILEPATH = "models/checkpoints/CAPTCHACNNClassifier_epoch{}.pt"
+CAPTCHACNNCLASSIFIER_TRAIN_ACCURACIES_FILEPATH = "documentation/CAPTCHACNNClassifier_epoch{}_train_acc.png"
+CAPTCHACNNCLASSIFIER_TRAIN_LOSSES_FILEPATH = "documentation/CAPTCHACNNClassifier_epoch{}_train_loss.png"
+CAPTCHACNNCLASSIFIER_VALID_ACCURACIES_FILEPATH = "documentation/CAPTCHACNNClassifier_epoch{}_valid_acc.png"
+CAPTCHACNNCLASSIFIER_VALID_LOSSES_FILEPATH = "documentation/CAPTCHACNNClassifier_epoch{}_valid_loss.png"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def open_create_datasets(vocab):
@@ -30,10 +34,14 @@ def open_create_datasets(vocab):
 
     return training_ds, validation_ds, test_ds
 
-def train_validate_model(model, optimizer, criterion, training_ds, validation_ds, training_ds_batch_size=64, validation_ds_batch_size=64, num_epochs=10):
+def train_validate_model(model, optimizer, criterion, training_ds, validation_ds, checkpoint_model=False, training_ds_batch_size=64, validation_ds_batch_size=64, num_epochs=10):
     # Create dataloader for batching support of every dataset
-    training_dl = DataLoader(training_ds, batch_size=training_ds_batch_size, num_workers=4)
+    training_dl = DataLoader(training_ds, batch_size=training_ds_batch_size, shuffle=True, num_workers=4)
     validation_dl = DataLoader(validation_ds, batch_size=validation_ds_batch_size)
+
+    # This is used for tracking accuracies and losses for model checkpointing
+    final_training_losses, final_validation_losses = [], []
+    final_training_accuracies, final_validation_accuracies = [], []
 
     for epoch in range(1, num_epochs + 1):
         print("Starting epoch {}...".format(epoch))
@@ -59,9 +67,12 @@ def train_validate_model(model, optimizer, criterion, training_ds, validation_ds
 
             training_loss += loss.item()
             training_accuracies.append(calculate_accuracy(predictions, labels).item())
-            
-        print("[TRAINING] Epoch {} loss is {:.4f}\n".format(epoch, training_loss / len(training_dl)))
-        print("[TRAINING] Epoch {} accuracy is {:.4f}\n".format(epoch, sum(training_accuracies) / len(training_accuracies)))
+
+        epoch_training_accuracy = sum(training_accuracies) / len(training_accuracies)
+        epoch_training_loss = training_loss / len(training_dl)
+
+        print("[TRAINING] Epoch {} loss is {:.4f}\n".format(epoch, epoch_training_loss))
+        print("[TRAINING] Epoch {} accuracy is {:.4f}\n".format(epoch, epoch_training_accuracy))
 
         validation_loss = 0.0
         validation_accuracies = []
@@ -80,10 +91,30 @@ def train_validate_model(model, optimizer, criterion, training_ds, validation_ds
             validation_loss += loss.item()
             validation_accuracies.append(calculate_accuracy(predictions, labels).item())
 
-        print("[VALIDATION] Epoch {} loss is {:.4f}\n".format(epoch, validation_loss / len(validation_dl)))
-        print("[VALIDATION] Epoch {} accuracy is {:.4f}\n".format(epoch, sum(validation_accuracies) / len(validation_accuracies)))
+        epoch_validation_accuracy = sum(validation_accuracies) / len(validation_accuracies)
+        epoch_validation_loss = validation_loss / len(validation_dl)
+
+        print("[VALIDATION] Epoch {} loss is {:.4f}\n".format(epoch, epoch_validation_loss))
+        print("[VALIDATION] Epoch {} accuracy is {:.4f}\n".format(epoch, epoch_validation_accuracy))
+
+        if checkpoint_model:
+            final_training_accuracies.append(epoch_training_accuracy)
+            final_training_losses.append(epoch_training_loss)
+            final_validation_accuracies.append(epoch_validation_accuracy)
+            final_validation_losses.append(epoch_validation_loss)
 
         print("Completed epoch {}!\n".format(epoch))
+
+    if checkpoint_model:
+        save_model_checkpoint(
+            model, 
+            optimizer, 
+            final_training_losses, 
+            final_validation_losses, 
+            final_training_accuracies, 
+            final_validation_accuracies, 
+            CAPTCHACNNCLASSIFIER_MODEL_CHECKPOINT_FILEPATH.format(epoch)
+        )
 
 def calculate_accuracy(predictions, labels):
     predictions = nn.LogSoftmax(dim=1)(predictions)
@@ -112,7 +143,9 @@ if __name__ == "__main__":
     print("[TRAINING & VALIDATION] Starting training and validation of encoder classifier model...\n")
     enc_model = CAPTCHACNNClassifier(3, len(vocab.labels_to_idx), DEVICE).to(DEVICE)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(enc_model.parameters(), lr=1e-1, momentum=0.9)
+    optimizer = optim.SGD(enc_model.parameters(), lr=1e-1, momentum=0.85)
 
-    train_validate_model(enc_model, optimizer, criterion, training_ds, validation_ds, training_ds_batch_size=1024, num_epochs=30)
+    train_validate_model(enc_model, optimizer, criterion, training_ds, validation_ds, training_ds_batch_size=1024, num_epochs=100, checkpoint_model=True)
     print("[TRAINING & VALIDATION] Completed!")
+
+
