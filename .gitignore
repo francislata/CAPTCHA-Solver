@@ -12,3 +12,6 @@ __pycache__/
 # Project-specific files
 dataset/train/
 dataset/test/
+
+# Jupyter notebook related files
+.ipynb_checkpoints/
